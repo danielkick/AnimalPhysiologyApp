@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1547776487436.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "99|17|145|4|\n146|17|212|4|\n273|52|314|8|\n290|69|313|8|\n",
+    "hash" : "3055109938",
+    "id" : "B12A8CC8",
+    "lastKnownWriteTime" : 1547779514,
+    "last_content_update" : 1547779514236,
+    "path" : "C:/Users/Daniel/Desktop/AnimalPhysiologyApp/app.R",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "89,26",
+        "scrollLine" : "79"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

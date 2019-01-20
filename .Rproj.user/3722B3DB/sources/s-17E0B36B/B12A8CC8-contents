@@ -1,0 +1,343 @@
+
+library(shiny)
+library(ggplot2)
+library(tidyr)
+library(ggbeeswarm)
+library(car)
+library(rethinking)
+library(cowplot)
+library(ggridges)
+library(dplyr) #for arrange
+
+#shinyApp(
+ui <-  tagList(
+    navbarPage(
+        "Continuous ~ Catagorical",
+        
+        ## Tab 1 ====
+        tabPanel(
+            "Upload and visualization",
+            titlePanel("Upload and visualize data"),
+            sidebarLayout(
+                sidebarPanel(
+                    
+                    fileInput("file1", "Choose CSV File",
+                              multiple = FALSE,
+                              accept = c(
+                                  "text/csv",
+                                  "text/comma-separated-values,text/plain",
+                                  ".csv"
+                              )
+                    ),
+                    
+                    checkboxInput("gather", label = "Convert to long format", value = TRUE),
+                    
+                    numericInput("FirstGather", label = "First data column", value = 1),
+                    
+                    numericInput("LastGather", label = "Last data column", value = 1),
+                    
+                    checkboxInput("ColorBy", label = "Color by key", value = TRUE),
+                    ## Horizontal line 
+                    ## tags$hr(),
+                    
+                    textInput("ivar", label = ("Independent Variable"), value = ""),
+                    
+                    textInput("dvar", label = ("Dependent Variable"), value = "")
+                ),
+                
+                mainPanel(
+                    tableOutput("contents"),
+                    
+                    plotOutput("user_plot")
+                )
+            )
+        ),
+        
+        ## Tab 2 ====
+        tabPanel(
+            "Frequentist Analysis",
+            
+            sidebarPanel(
+                radioButtons("RunMainEffect", "Run Main Effect Test?",
+                             choices = c("No", "Yes")
+                ),
+                radioButtons("RunPostHoc", "Run Post Hoc Test?",
+                             choices = c("No", "Yes")
+                )
+            ),
+            
+            
+            mainPanel(
+                tableOutput("main_effect"),
+                
+                tableOutput("post_hoc_test")
+            )
+        ),
+
+        ## Tab 3 ====        
+        tabPanel(
+            "Bayesian Analysis",
+            sidebarPanel(
+                textInput("CtrlEffect", label = "Control for a factor?", value = "No"),
+                
+                checkboxInput("RunModel", label = "Ready to run model?", value = F)
+            ),
+            mainPanel(
+                #plots
+                plotOutput("PosteriorDensityRidges"),
+                textOutput("PosteriorStats"),
+                plotOutput("SubtractedPosteriors"),
+                htmlOutput("SubtractedPosteriorsStats")
+            )
+        )
+    )
+)
+
+# Server ----
+
+server <-  function(input, output) {
+    
+    ## For Tab 1 ====
+    output$contents <- renderTable({
+        
+        # input$file1 will be NULL initially. After the user selects
+        # and uploads a file, head of that data file by default,
+        # or all rows if selected, will be shown.
+        
+        req(input$file1)
+        
+        # when reading semicolon separated files,
+        # having a comma separator causes `read.csv` to error
+        tryCatch({
+            df <- read.csv(input$file1$datapath)
+        },
+        error = function(e) {
+            # return a safeError if a parsing error occurs
+            stop(safeError(e))
+        }
+        )
+        return(head(df))
+    })
+    
+    output$user_plot <- renderPlot({
+        req(input$file1)
+        req(input$ColorBy)
+        
+        df <- read.csv(input$file1$datapath) # repeat from above
+        
+        if (input$gather == TRUE) {
+            df <- gather(df, "Key", "Value", seq(
+                from = input$FirstGather,
+                to = input$LastGather,
+                by = 1
+            ))
+        }
+        
+        if (input$ColorBy == FALSE) {
+            ggplot(df, aes_string(x = "Key", y = "Value")) +
+                ggbeeswarm::geom_quasirandom() +
+                labs(x = input$ivar, y = input$dvar)
+        } else {
+            ggplot(df, aes_string(x = "Key", y = "Value", color = "Key")) +
+                ggbeeswarm::geom_quasirandom() +
+                labs(x = input$ivar, y = input$dvar)
+        }
+    })
+    
+    ## For Tab 2 ====
+    
+    output$main_effect <- renderTable({
+        req(input$file1)
+        
+        tryCatch({
+            df <- read.csv(input$file1$datapath)
+        },
+        error = function(e) {
+            # return a safeError if a parsing error occurs
+            stop(safeError(e))
+        }
+        )
+        
+        if (input$gather == TRUE) {
+            df <- gather(df, "Key", "Value", seq(
+                from = input$FirstGather,
+                to = input$LastGather,
+                by = 1
+            ))
+        }
+        
+        
+        if (input$RunMainEffect == "Yes") {
+            fm <- lm(Value ~ Key, data = df)
+            
+            main_effect <- car::Anova(fm, type = "III")
+        }
+        
+        return(main_effect)
+    })
+    
+    output$post_hoc_test <- renderTable({
+        req(input$file1)
+        
+        tryCatch({
+            df <- read.csv(input$file1$datapath)
+        },
+        error = function(e) {
+            # return a safeError if a parsing error occurs
+            stop(safeError(e))
+        }
+        )
+        
+        if (input$gather == TRUE) {
+            df <- gather(df, "Key", "Value", seq(
+                from = input$FirstGather,
+                to = input$LastGather,
+                by = 1
+            ))
+        }
+        
+        
+        if (input$RunMainEffect == "Yes") {
+            fm <- lm(Value ~ Key, data = df)
+            
+            main_effect <- car::Anova(fm, type = "III")
+        }
+        
+        if (input$RunPostHoc == "Yes") {
+            results <- agricolae::HSD.test(fm, trt = "Key")
+            
+            post_hoc_test <- results$groups
+        }
+        return(post_hoc_test)
+    })
+    
+    ## For Tab 3 ====
+    plt <- hist(1:8)
+    
+    #use observe to pull the processing out of the assignment of ui objects
+    observe({
+        req(input$file1)
+        req(input$FirstGather)
+        req(input$LastGather)
+        
+        req(input$CtrlEffect)
+        req(input$RunModel)
+        
+        df <- read.csv(input$file1$datapath) # repeat from above
+        
+        if (input$gather == TRUE) {
+            df <- gather(df, "Key", "Value", seq(
+                from = input$FirstGather,
+                to = input$LastGather,
+                by = 1
+            ))
+        }
+        
+        #TODO: later need to automatically pick priors
+        
+        df <- as.data.frame(df) # ensure we're not working with tibbles
+        df$KEY_ID <- rethinking::coerce_index(df$Key)
+
+        if (input$CtrlEffect != "No"){
+            #FIXME if someone types in a non valid name this could break
+            #TODO: Add an else that controls for individual effect
+            #TODO: use coerce_index to make sure that we know what the controled factor is.            
+
+            
+        } else {
+            model <- rethinking::map(
+                alist(
+                    Value ~ dnorm(mu, sigma),
+                    mu <- a[KEY_ID],
+                    a[KEY_ID] ~ dnorm(73, 13),
+                    sigma ~ dunif(0, 40)
+                ), 
+                data = df
+            )
+        }
+
+        
+        post <- rethinking::extract.samples(model)
+        ## plots of posterior
+        temp <- df[, c("Key", "KEY_ID")] %>% unique()
+        ordered.names <- dplyr::arrange(temp, KEY_ID)[,1] 
+        
+        temp <- post$a %>% as.data.frame()
+        names(temp) <- ordered.names
+      ### First plot ####
+      output$PosteriorDensityRidges <- renderPlot({   
+        ggplot(gather(temp, KEY, VALUE, seq(1, ncol(temp))),
+               aes(x = VALUE, y = KEY, fill = KEY))+
+            ggridges::geom_density_ridges(alpha = 0.5)
+        }) 
+        
+        ### Prep plots of differences of posteriors ####
+        
+        temp.diffs <- as.data.frame(matrix(NA, nrow = nrow(temp), 
+                                           ncol = sum(seq(1, (ncol(temp)-1)))))
+        
+        empty.col <- 1
+        for (i in seq(1, length(ordered.names)-1)){
+          for (j in seq(i+1, length(ordered.names))){
+            temp.diffs[, empty.col] <- temp[,i] - temp[,j]
+            names(temp.diffs)[empty.col] <- paste0(ordered.names[i], "-", ordered.names[j])
+            print(paste(i,j))
+            empty.col <- empty.col+1
+          }
+        }
+        
+        ### Make a nice figure that can be produced from one difference column.
+        # Shade HDPI for 67, 89, 97 because they're all prime
+        plt.list <- purrr::map(seq(1, ncol(temp.diffs)), function(i){
+          #i=1
+          # ref : http://rstudio-pubs-static.s3.amazonaws.com/5475_d63ad1667701424c9a1292ee766b45bb.html
+          
+          temp.diffs.plt <- with(density(temp.diffs[,i]), data.frame(x, y))
+          #names(temp.diffs.plt) <- c(names(temp.diffs)[i], "Density")
+          HPDI.67 <- rethinking::HPDI(temp.diffs[,i], prob = 0.67)
+          HPDI.89 <- rethinking::HPDI(temp.diffs[,i], prob = 0.89)
+          HPDI.97 <- rethinking::HPDI(temp.diffs[,i], prob = 0.97)
+          CMODE <- rethinking::chainmode(temp.diffs[,i])
+          
+          ggplot(temp.diffs.plt, aes_string(x = "x", y = "y"))+
+            geom_area(aes(x = ifelse(x>HPDI.97[1] & x<HPDI.97[2] , x, 0)),
+                      fill = "firebrick", alpha = 0.4)+
+            geom_area(aes(x = ifelse(x>HPDI.89[1] & x<HPDI.89[2] , x, 0)),
+                      fill = "firebrick", alpha = 0.4)+
+            geom_area(aes(x = ifelse(x>HPDI.67[1] & x<HPDI.67[2] , x, 0)),
+                      fill = "firebrick", alpha = 0.4)+
+            geom_vline(xintercept = CMODE, size = 1, linetype = "dashed", color = "black")+
+            geom_vline(xintercept = 0, size = 1, linetype = "dashed", color = "blue")+
+            geom_line(size = 1)+
+            scale_y_continuous(limits = c(0, max(temp.diffs.plt$y)))+
+            labs(x = names(temp.diffs)[i], y = "Density")
+        })
+        
+        ### Multi-plot figure ####
+        output$SubtractedPosteriors <- renderPlot({
+          cowplot::plot_grid(plotlist = plt.list)          
+        })
+
+        ### table of posteriors ####
+        output$PosteriorStats <- renderPrint({
+          rethinking::precis(temp)
+        })
+        
+        ### table  of differences of posteriors ####
+        output$SubtractedPosteriorsStats <- renderUI({
+          HTML(rethinking::precis(temp.diffs))         
+        })
+
+       
+    })
+}
+
+
+#M <- read.csv("C:/Users/Daniel/Desktop/class_diving_data.csv")
+#M <- gather(M, "Key", "Value", 2:6)
+#fm <- lm(Value ~ Key, data = M)
+
+#ss <- agricolae::HSD.test(fm, trt = "Key")
+#ss$groups
+
+shiny::shinyApp(ui = ui, server = server)
