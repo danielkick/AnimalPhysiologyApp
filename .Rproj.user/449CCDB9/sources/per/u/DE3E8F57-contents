@@ -1,0 +1,16 @@
+df <- read.csv("~/Desktop/grades.csv")
+library(ggplot2)
+library(cowplot)
+library(ggsci)
+
+plot_grid(plotlist = list(
+  ggplot(df, aes(x = Report))+
+    geom_density(fill = "#e41a1c")+
+    xlim(0, 25),
+  
+  ggplot(df, aes(x = BioElecQuiz))+
+    geom_density(fill = "#377eb8")+
+    xlim(0, 20)
+), nrow = 2, ncol = 1)
+
+

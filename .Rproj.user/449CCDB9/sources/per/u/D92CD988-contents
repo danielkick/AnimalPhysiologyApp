@@ -1,0 +1,36 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(rethinking)
+
+rethinking::map(
+  alist(
+    Sepal.Length ~ dnorm(mu, sigma),
+    mu ~ dnorm(5, 5),
+    sigma ~ dunif(0, 10)
+  ),
+  data = iris
+)
+
+
+
+s <- "Sepal.Length ~ dnorm(mu, sigma); mu ~ dnorm(5, 5); sigma ~ dunif(0, 10)"
+lapply(strsplit(s, ";")[[1]], function(x) parse(text = x)[[1]])
+
+rethinking::map(
+  lapply(strsplit(s, ";")[[1]], function(x) parse(text = x)[[1]])
+  ,
+  data = iris
+)
+
+
+```
+

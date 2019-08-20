@@ -1,0 +1,13 @@
+M <- data.frame(days = 1:365)
+
+#2.5- 0.5882353
+M$cost <- seq(-310, by = 1.912, length.out = nrow(M))
+
+
+10/17
+  
+  
+
+library(ggplot2)
+ggplot(M, aes(x = days, y = cost))+
+  geom_line()

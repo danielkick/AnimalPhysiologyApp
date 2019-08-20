@@ -10,7 +10,6 @@ library(ggridges)
 library(dplyr) # for arrange
 library(datasets) # for chickwts data
 
-
 if (T == F){
 # Custom Functions ----
 new_precis <- function(input.df = temp,
@@ -65,7 +64,7 @@ ui <- tagList(
           ),
           "Type column number of the first and last columns you wish to use.",
           numericInput("FirstGather", label = "First data column", value = 2),
-          numericInput("LastGather", label = "Last data column", value = 3),
+          numericInput("LastGather", label = "Last data column", value = 6),
           checkboxInput("RunGather", label = "Convert to long format", value = FALSE),
           
           checkboxInput("ColorBy", label = "Color by Key", value = TRUE),
@@ -89,26 +88,18 @@ ui <- tagList(
         "This is a simple linear model allowing a different intercept for each treatment in the provided data.",
         textInput("CtrlEffect", label = "Control for a factor?", value = "No"),
         checkboxInput("RunModel", label = "Ready to run model?", value = F),
-        numericInput("HPDIProb", label = "Highest posterior density interval:", value = 0.89),
+        numericInput("HPDIProb", label = "Highest posterior density interval probability:", value = 0.89),
         
+        tags$hr(),
         
-        # a_mu <<- median(df$Value)
-        # a_sigma <<- sd(df$Value)
-        #   b_mu <<- 5
-        #   b_sigma <<- as.numeric(sd(df$Value) / 2)
-        # 
-        # sigma_min <<- as.numeric(0.001)
-        # sigma_max <<- as.numeric(2 * (max(df$Value) - min(df$Value)))
-        # 
-        
-        "To manually specify the priors to be used, use the spaces below. For the default values, see the Notes tab.",
-      checkboxInput("ManualPriors", label = "Manually specify priors?", value = F),
-        numericInput("a_mu", label = "Treatment mu", value = 0),
-        numericInput("a_sigma", label = "Treatment sigma", value = 0.1),
-        numericInput("b_mu", label = "Statistically controled factor mu", value = 0),
-        numericInput("b_sigma", label = "Statistically controled factor sigma", value = 0.1),
+        "To manually specify the priors to be used, use the spaces below.",
+        numericInput("a_mu", label = "Factor mu", value = 73),
+        numericInput("a_sigma", label = "Factor sigma", value = 13),
+        numericInput("b_mu", label = "Controled factor mu", value = 0),
+        numericInput("b_sigma", label = "Controled factor sigma", value = 5),
         numericInput("sigma_min", label = "Sigma min", value = 0),
-        numericInput("sigma_max", label = "Sigma max", value = 40)
+        numericInput("sigma_max", label = "Sigma max", value = 40),
+        checkboxInput("ManualPriors", label = "Manually specify priors?", value = F)
       ),
       mainPanel(
         # plots
@@ -124,85 +115,52 @@ ui <- tagList(
           type = "text/css",
           "#SubtractedPosteriorsStats {white-space: pre-wrap;}"
         )
-      
-        )
+      )
     ),
-    
+    ## Tab 3 ====
     tabPanel(
-      "Notes",
-      withMathJax(),
-      # section below allows in-line LaTeX via $ in mathjax. Replace less-than-sign with < 
-      # and grater-than-sign with >
-      tags$div(HTML("less-than-sign script type='text/x-mathjax-config' greater-than-sign
-                    MathJax.Hub.Config({
-                    tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
-                    });
-                    less-than-sign /script greater-than-sign
-                    ")),
-      helpText('An irrational number $\\sqrt{2}$
-               and a fraction $1-\\frac{1}{2}$'),
-      helpText('and a fact about $\\pi$:$\\frac2\\pi = \\frac{\\sqrt2}2 \\cdot
-               \\frac{\\sqrt{2+\\sqrt2}}2 \\cdot
-               \\frac{\\sqrt{2+\\sqrt{2+\\sqrt2}}}2 \\cdots$'),
+      "Explicit Modeling",
+      
+      
+      sidebarPanel(
+      "Value ~ dnorm(mu, sigma),
+      mu <- a[KEY_ID],
+      a[KEY_ID] ~ dnorm(a_mu, a_sigma),
+      sigma ~ dunif(sigma_min, sigma_max)",
+      
+      tags$hr(), 
+       
+      "Value ~ dnorm(mu, sigma),
+      mu <- a[KEY_ID] + b[CTRL_BY],
+      a[KEY_ID] ~ dnorm(a_mu, a_sigma),
+      b[CTRL_BY] ~ dnorm(b_mu, b_sigma),
+      sigma ~ dunif(sigma_min, sigma_max)",
+      
+        textInput("ModelFormula", label = "Model Formula", 
+value = "Value ~ dnorm(mu, sigma),
+          mu <- a[KEY_ID],
+                  a[KEY_ID] ~ dnorm(a_mu, a_sigma),
+                  sigma ~ dunif(sigma_min, sigma_max)"),
+
+        checkboxInput("Manual_RunModel", label = "Ready to run model?", value = F),
+        numericInput("Manual_HPDIProb", label = "Highest posterior density interval probability:", value = 0.89)
+
+      ),
       mainPanel(
-        
-        tags$h4("Automatic Priors"),
-        
-        "If left unchecked the following opperations will be performed on the full dataset (with all treatments lumped together) and the resultant values will be used as priors
-        Treatment mu = median, Treatment sigma = standard deviation, Control mu = 0.5/median, Control sigma = 0.5*standard deviation, Sigma min = 0.001, Sigma max = 2*range",
-        
-        tags$h4("Model Templates"), 
-        "Below are several example modeling statements. Since this app is designed to be used with multiple datasets, the treatments (and controls if used) will need to be adapted to one's specific experiment",
-        
-        tags$hr(),
-        
-      "Template model sans statistical control, where \"Trt\" refers to a level of a treatment (e.g. harvest date in the cabbage data set). ", 
-      
-      withMathJax(
-        helpText(
-          "$$Response \\sim \\mathcal{N}(\\mu, \\sigma)$$ \n
-      $$\\mu_{Treatment} \\leftarrow \\alpha_{1}*[Trt_{1}] + \\alpha_2*[Trt_{2}] + \\alpha_3*[Trt_{3}] + etc..$$ \n
-      
-      $$\\alpha_{1} \\sim \\mathcal{N}(\\mu_{Trt_1}, \\sigma_{Trt_1}) $$ \n
-      $$\\alpha_{2} \\sim \\mathcal{N}(\\mu_{Trt_2}, \\sigma_{Trt_2}) $$ \n
-      $$\\alpha_{3} \\sim \\mathcal{N}(\\mu_{Trt_3}, \\sigma_{Trt_3}) $$ \n
-      $$\\sigma \\sim \\mathcal{U}(min, max) $$
-      "
-        )),
-      
-      tags$hr(), 
-      
-      "Below are is alternative ways of describing the model, both without and with a factor which is controlled for.",
-      "Template model sans statistical control", 
-      
-      withMathJax(
-        #helpText(
-          "$$Response \\sim \\mathcal{N}(\\mu_{Treatment}, \\sigma)$$ \n
-          $$\\mu_{Treatment} \\leftarrow \\alpha[Treatment] $$ \n
-          $$\\alpha \\sim \\mathcal{N}(\\mu_{\\alpha}, \\sigma_{\\alpha}) $$ \n
-          $$\\sigma \\sim \\mathcal{U}(min, max) $$
-          "
-        #)
+        plotOutput("Manual_PosteriorDensityRidges"),
+        tableOutput("Manual_PosteriorStats"),
+        tags$style(
+          type = "text/css",
+          "#PosteriorStats {white-space: pre-wrap;}"
         ),
-      
-      tags$hr(), 
-      
-      "Template model with statistical control", 
-      withMathJax(
-        helpText(
-          "$$Response \\sim \\mathcal{N}(\\mu_{Treatment}, \\sigma)$$ \n
-          $$\\mu_{Treatment} \\leftarrow \\alpha[Treatment] + \\beta[Control]$$ \n
-          $$\\alpha \\sim \\mathcal{N}(\\mu_{\\alpha}, \\sigma_{\\alpha}) $$ \n
-          $$\\beta \\sim \\mathcal{N}(\\mu_{\\beta}, \\sigma_{\\beta}) $$ \n
-          $$\\sigma \\sim \\mathcal{U}(min, max) $$
-          "
-        ))
-      
-      
-      
+        plotOutput("Manual_SubtractedPosteriors"),
+        tableOutput("Manual_SubtractedPosteriorsStats"),
+        tags$style(
+          type = "text/css",
+          "#SubtractedPosteriorsStats {white-space: pre-wrap;}"
+        )
+      )
     )
-    )
-    
     
   )
 )
@@ -210,6 +168,7 @@ ui <- tagList(
 # Server ----
 
 server <- function(input, output) {
+
   ## For Tab 1 ====
 
   observe({
@@ -293,7 +252,6 @@ server <- function(input, output) {
 
   ## For Tab 2 ====
 
-    
   # use observe to pull the processing out of the assignment of ui objects
   #observe({
     req(input$CtrlEffect)
@@ -321,7 +279,7 @@ server <- function(input, output) {
 
         # b_mu <- 0
         # b_sigma <- 5
-        b_mu <<- as.numeric(median(df$Value) / 2) #5
+        b_mu <<- 5
         b_sigma <<- as.numeric(sd(df$Value) / 2)
       }
 
@@ -350,7 +308,6 @@ server <- function(input, output) {
           a[KEY_ID] ~ dnorm(a_mu, a_sigma),
           b[CTRL_BY] ~ dnorm(b_mu, b_sigma),
           sigma ~ dunif(sigma_min, sigma_max)
-          #sigma ~ dcauchy(0, 1)
         ),
         data = df
       )
@@ -362,7 +319,6 @@ server <- function(input, output) {
           mu <- a[KEY_ID],
           a[KEY_ID] ~ dnorm(a_mu, a_sigma),
           sigma ~ dunif(sigma_min, sigma_max)
-          #sigma ~ dcauchy(0, 5)
         ),
         data = df
       )
@@ -421,38 +377,17 @@ server <- function(input, output) {
       CMODE <- rethinking::chainmode(temp.diffs[, i])
 
       ggplot(temp.diffs.plt, aes_string(x = "x", y = "y")) +
-        geom_segment(aes(x = HPDI.97[1],
-                           xend = HPDI.97[2],
-                           y= 0,
-                            yend = 0,),
-                     size = 3,
-                     color = "deepskyblue1", alpha = 0.4)+
-        
-      geom_segment(aes(x = HPDI.89[1],
-                       xend = HPDI.89[2],
-                       y= 0,
-                       yend = 0,), 
-                   size = 3,
-                   color = "deepskyblue3", alpha = 0.4)+
-      
-      geom_segment(aes(x = HPDI.67[1],
-                       xend = HPDI.67[2],
-                       y= 0,
-                       yend = 0,), 
-                   size = 3,
-                   color = "deepskyblue4", alpha = 0.4)+
-
-        # geom_area(aes(x = ifelse(x > HPDI.97[1] & x < HPDI.97[2], x, 0)),
-        #   fill = "firebrick", alpha = 0.4
-        # ) +
-        # geom_area(aes(x = ifelse(x > HPDI.89[1] & x < HPDI.89[2], x, 0)),
-        #   fill = "firebrick", alpha = 0.4
-        # ) +
-        # geom_area(aes(x = ifelse(x > HPDI.67[1] & x < HPDI.67[2], x, 0)),
-        #   fill = "firebrick", alpha = 0.4
-        # ) +
+        geom_area(aes(x = ifelse(x > HPDI.97[1] & x < HPDI.97[2], x, 0)),
+          fill = "firebrick", alpha = 0.4
+        ) +
+        geom_area(aes(x = ifelse(x > HPDI.89[1] & x < HPDI.89[2], x, 0)),
+          fill = "firebrick", alpha = 0.4
+        ) +
+        geom_area(aes(x = ifelse(x > HPDI.67[1] & x < HPDI.67[2], x, 0)),
+          fill = "firebrick", alpha = 0.4
+        ) +
         geom_vline(xintercept = CMODE, size = 1, linetype = "dashed", color = "black") +
-        geom_vline(xintercept = 0, size = 1, linetype = "dashed", color = "steelblue") +
+        geom_vline(xintercept = 0, size = 1, linetype = "dashed", color = "blue") +
         geom_line(size = 1) +
         scale_y_continuous(limits = c(0, max(temp.diffs.plt$y))) +
         labs(x = names(temp.diffs)[i], y = "Density")
@@ -504,6 +439,10 @@ server <- function(input, output) {
       new_precis(temp.diffs, HDPI.prob = input$HPDIProb)
     })
   
+    
+    
+    ## Tab 3 ====
+    
   })
 }
 

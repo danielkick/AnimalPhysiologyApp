@@ -1,0 +1,13 @@
+name: AnimalPhysiologyApp02
+title: AnimalPhysiologyApp02
+username:
+account: danielkick
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 727211
+bundleId: 1907028
+url: https://danielkick.shinyapps.io/AnimalPhysiologyApp02/
+when: 1551381351.0181
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app (drk8b9@mail.missouri.edu).R|DemoDive

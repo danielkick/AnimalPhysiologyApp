@@ -1,0 +1,24 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1566315384667.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "160717655",
+    "id" : "9AFB5491",
+    "lastKnownWriteTime" : 1551381523,
+    "last_content_update" : 1551381523,
+    "path" : "C:/Users/drk8b9/Box Sync/AnimalPhysiologyApp/app.R",
+    "project_path" : "app.R",
+    "properties" : {
+        "cursorPosition" : "120,43",
+        "docOutlineSize" : "182.31723576847364",
+        "docOutlineVisible" : "1",
+        "scrollLine" : "102"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
